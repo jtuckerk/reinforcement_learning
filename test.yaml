@@ -2,7 +2,7 @@ bound: [10,10]
 objects:
     - circle:
         origin: [1,1]
-        radius: 2
+        radius: 1
     - rectangle:
         origin: [3,3]
         size: [2,4]

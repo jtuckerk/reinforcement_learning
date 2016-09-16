@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import math
 
 def ray_intersects_circle((Ax, Ay), (Bx, By), (Cx, Cy), radius): #A start B end
+
     E = np.array([Ax, Ay]) 
     L = np.array([Bx, By])
     d = L-E
@@ -42,7 +43,7 @@ def ray_intersects_circle((Ax, Ay), (Bx, By), (Cx, Cy), radius): #A start B end
           # (since t1 uses -b - discriminant)
           # Impale, Poke
 
-          return True, _.get_intersect_distance_circle(E,L,C,r) ;
+          return True, get_intersect_distance_circle(E,L,C,r) ;
 
 
       # here t1 didn't intersect so we are either started
@@ -50,12 +51,12 @@ def ray_intersects_circle((Ax, Ay), (Bx, By), (Cx, Cy), radius): #A start B end
       if( t2 >= 0 and t2 <= 1 ):
           # ExitWound
         
-          return True, _.get_intersect_distance_circle(E,L,C,r) ;
+          return True, get_intersect_distance_circle(E,L,C,r) ;
 
 
       # no intn: FallShort, Past, CompletelyInside
      
-      return False ;
+      return False,0 ;
 
 
 # A is ray origin B is Ray end C is circle center
@@ -68,8 +69,6 @@ def get_intersect_distance_circle((Ax,Ay),(Bx,By), (Cx, Cy), radius):
     Dy = (By-Ay)/LAB                                                         
 
     # compute the value t of the closest point to the circle center (Cx, Cy) 
-    Cx = _.origin[0]                                                         
-    Cy = _.origin[1]                                                         
     t = Dx*(Cx-Ax) + Dy*(Cy-Ay)                                                           # This is the projection of C on the line from A to B.                  
     # compute the coordinates of the point E on line and closest to C        
     Ex = t*Dx+Ax                                                             
@@ -81,12 +80,14 @@ def get_intersect_distance_circle((Ax,Ay),(Bx,By), (Cx, Cy), radius):
 
         # compute first intersection point                                   
         Fx = (t-dt)*Dx + Ax                                                  
-        Fy = (t-dt)*Dy + Ay                                                                  # compute second intersection point                                                  #Gx = (t+dt)*Dx + Ax
-        #Gy = (t+dt)*Dy + Ay
+        Fy = (t-dt)*Dy + Ay
+        # compute second intersection point
+        Gx = (t+dt)*Dx + Ax
+        Gy = (t+dt)*Dy + Ay
 
-        #dist A to F
+        #dist A to G is actually the one we want maybe more to check
         
-        return distance((Ax,Ay),(Fx,Fy))
+        return distance((Ax,Ay),(Gx,Gy))
 
 
 def line_intersection(line1, line2):
@@ -127,92 +128,121 @@ def ray_intersects_polygon((Ax, Ay), (Bx, By), sides):
     A=(Ax, Ay)
     B=(Bx, By)
     closest = (0,0)
-    dist = False
+    intersect = False
+    dist = 0#ugly
     for side in sides:
         b, li = line_intersection((A,B), side)
 
         if is_between(A,li,B) and is_between(side[0], li, side[1]):
             new_dist = distance(A,li)
 
-            if not dist or new_dist < dist:
+            if not intersect or new_dist < dist:
 
                 closest = li
                 dist=new_dist
 
-    return dist, closest
+                intersect=True
+                
+    return intersect,dist
 
-class sensors:
-    class bounded_sensor:
-        ray_count = 3
-        distance = 1
-        x_pos = 0
-        y_pos = 0
-        ray_width = .2 # % of 360
-        ray_angle = 0  # % of 360
 
-        def __init__(_, ray_count, ray_width, distance, x_pos, y_pos):
-            _.ray_count = ray_count 
-            _.distance = distance 
-            _.x_pos= x_pos
-            _.y_pos= y_pos
-            _.ray_width = ray_width
+class bounded_sensor:
 
-        def set_ray_angle(_, angle): #0-1 for 0 to 360
-            _.ray_angle = angle
+    def __init__(_, ray_count, ray_width, distance, x_pos, y_pos):
+        _.ray_count = ray_count 
+        _.distance = distance 
+        _.x_pos= x_pos
+        _.y_pos= y_pos
+        _.ray_width = ray_width #degrees
+        _.ray_angle = 0  # degrees
 
-        def set_pos(_, x, y):
-            _.x_pos = x
-            _.y_pos = y
+    def set_ray_angle(_, angle): #degrees
+        _.ray_angle = angle
 
-        def get_ray_lines(_):
+    def set_pos(_, x, y):
+        _.x_pos = x
+        _.y_pos = y
 
-            #clockwise most ray is half the width from the center (ray angle)
-            angles = []
+    def get_ray_lines(_):
+
+        #clockwise most ray is half the width from the center (ray angle)
+        angles = []
+        if _.ray_count == 1:
+            angle_between = 0
+        else:
             angle_between = 1.0*_.ray_width/(_.ray_count-1)
-       
-       
-            start_angle = (_.ray_angle-_.ray_width/2.0)*360%360
-       
 
-            lines  = []
-            for i in range(_.ray_count):
-                angle = start_angle+i*angle_between*360
-                rad_angle = angle*np.pi/180
-       
-       
-                dx = _.distance*np.cos(rad_angle)
-                dy = _.distance*np.sin(rad_angle)
-                print(((_.x_pos,_.y_pos), (_.x_pos+dx, _.y_pos+dy)))
-                lines.append(((_.x_pos,_.y_pos), (_.x_pos+dx, _.y_pos+dy)))
 
-            return lines 
-        def ray_visual_lines(_):
-            lines = []
-            for x in _.get_ray_lines():
-                lines.append(x[0])
-                lines.append(x[1])
-            return lines
+        start_angle = (_.ray_angle-_.ray_width/2.0)%360
 
-        def draw_obj(_):
-            return plt.Polygon(_.ray_visual_lines(), fc='y')
+
+        lines  = []
+        for i in range(_.ray_count):
+
+            angle = start_angle+i*angle_between
+            rad_angle = np.deg2rad(angle)
+
+
+            dx = _.distance*np.cos(rad_angle)
+            dy = _.distance*np.sin(rad_angle)
+            
+            lines.append(((_.x_pos,_.y_pos), (_.x_pos+dx, _.y_pos+dy)))
+
+
+        return lines 
+    def ray_visual_lines(_):
+        lines = []
+        for x in _.get_ray_lines():
+            lines.append(x[0])
+            lines.append(x[1])
+        return lines
+
+    def draw_obj(_):
+        return plt.Polygon(_.ray_visual_lines(), fc='y')
+
+    # each ray returns true or false and a distance to the intersection
+    def sense_objects(_, obj_list):
+        sensor_rays = _.get_ray_lines()
+        sensor_output = []
+        collision = False
         
-        # each ray returns true or false and a distance to the intersection
-        def sense_objects(_, obj_list):
-            sensor_rays = _.get_ray_lines()
-            sensor_output = []
-            for ray in sensor_rays:
-                i= False
-                for obj in obj_list:
-                    d = _.distance+1 # make sure we find the closest to the sensor
-                    if obj.shape == 'circle':
-                        intersect, dist = ray_intersects_circle(ray[0], ray[1], obj.origin, obj.radius)
-                        if intersect and dist<d:
-                            d=dist
-                            i=True
-                    else:
-                        intersect, dist = ray_intersects_polygon(ray[0], ray[1], obj.get_sides())
-                        if intersect and dist < d:
-                            d=dist
-                            i=True
-                sensor_output.append((i,d))
-            return sensor_output
+        for ray in sensor_rays:
+            i= False
+            d = _.distance+1 # make sure we find the closest to the sensor
+            for obj in obj_list:
+
+                if obj.shape == 'circle':
+                    intersect, dist = ray_intersects_circle(ray[0], ray[1], obj.origin, obj.radius)
+                    #not gonna worry about circles cuz ray stuff is messed up
+                    if intersect and dist<d:
+                        d=dist
+                    
+                        i=True
+                else:
+                    intersect, dist, i_count = ray_intersects_polygon(ray[0], ray[1], obj.get_sides())
+                    if intersect and dist < d:
+                        d=dist
+                        i=True
+
+                    if obj.shape=='rectangle':
+                        if obj.is_inside(_.x_pos, _.y_pos):
+                            collision=True
+
+                    # use to find if point is within poly
+                    # import matplotlib.path as mplPath
+                    # import numpy as np
+
+                    # poly = [190, 50, 500, 310]
+                    # bbPath = mplPath.Path(np.array([[poly[0], poly[1]],
+                    #                                 [poly[1], poly[2]],
+                    #                                 [poly[2], poly[3]],
+                    #                                 [poly[3], poly[0]]]))
+                    
+                    # bbPath.contains_point((200, 100))
+            sensor_output.append((i,d))
+        return sensor_output
+    def connect_env(_,env):
+        _.env_objects = env.objects
+
+    def sense(_):
+        return _.sense_objects(_.env_objects)

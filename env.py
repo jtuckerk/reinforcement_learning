@@ -5,46 +5,66 @@ import matplotlib.pyplot as plt
 import yaml
 
 class env:
-    width=10
-    height=10
 
-    size = (width,height)
-
-    goal=(width,height)
-    
-    objects=[]
-
-    agents = []
-    
-    def __init__(_, width, height):
+    def __init__(_, width, height, show=True):
         _.width=width
         _.height=height
-
+        _.objects=[]
+        _.agents = []
+        _.size = (_.width,_.height)
+        _.goal=(_.width,_.height)
         #environment boundaries
-
+        if show:
+            _.fig, _.ax = plt.subplots()
+            
         bounds = _.rectangle((0,0), (width, height), is_border=True) 
         _.objects.append(bounds)
 
+    def add_agent(_, agent):
+        agent.connect_env(_)
+        _.agents.append(agent)
+        
     def add_circle(_,(x0,y0), r):
         _.objects.append(_.circle((x0,y0), r))
 
     def add_rectangle(_,(x0,y0), (w,h)):
         _.objects.append(_.rectangle((x0,y0), (w,h)))
 
+    def add_random_rectangle(_, mean_side_length, var):
+        x = np.random.rand()*_.width
+        y = np.random.rand()*_.height
+
+        w = np.random.normal(mean_side_length, var, 1)[0]
+        h = np.random.normal(mean_side_length, var, 1)[0]
+
+        _.objects.append(_.rectangle((x,y), (w,h)))
+        
     def add_random_polygon(_,radius, variance, sides):
         _.objects.append(_.random_polygon(radius, variance, sides, _.width, _.height))
 
     def draw(_):
-        plt.axes()
+
+        _.update_draw()
+        plt.show()         
+
+
+    def update_draw(_):
+
+        _.ax.clear()
         for o in _.objects:
-            plt.gca().add_patch(o.draw_obj())
+            _.fig.gca().add_patch(o.draw_obj())
 
         for a in _.agents:
+            
             for o in a.draw_objs():
-                plt.gca().add_patch(o)
-        plt.axis('scaled')
-        plt.show()
+                
+                _.fig.gca().add_patch(o)
 
+
+        _.ax.axis('scaled')
+
+        _.fig.canvas.draw()
+        
     def load_from_yaml(_,filename):
         f = open(filename)
         # use safe_load instead load
@@ -150,22 +170,14 @@ class env:
         def new_point(_,p1, p0, variance, radius, sides):
             rise = p1[1]-p0[1]
             run = p1[0]-p0[0]
-            tang_ang = np.arctan2(run,rise)*180/np.pi
+            ang = np.rad2deg(np.arctan2(rise,run))
+            tang_ang = ((ang+90)%360)
 
-            if run > 0 and rise > 0:
-                tang_ang+=90
-            if run >0 and rise <0:
-                    tang_ang+=90
-            if run <0 and rise > 0:
-                tang_ang = (tang_ang+90+360)%360
-            if run<0 and rise<0:
-                tang_ang += 360+90
 
-            tang_ang*=-1
-            tang_ang+=90
+
             mean_side_length = 2*radius*np.sin(np.pi/sides)
             side_mag = _.gaus(variance*mean_side_length, mean_side_length)
-            new_ang=_.gaus(variance*90, tang_ang-(180/sides))
+            new_ang=_.gaus(variance*90, tang_ang+(180.0/sides))
             dx = side_mag*np.cos(new_ang/180.0*np.pi)
             dy = side_mag*np.sin(new_ang/180.0*np.pi)
 
