@@ -148,6 +148,8 @@ def ray_intersects_polygon((Ax, Ay), (Bx, By), sides):
 
 class bounded_sensor:
 
+    goal_dist = .2
+    
     def __init__(_, ray_count, ray_width, distance, x_pos, y_pos):
         _.ray_count = ray_count 
         _.distance = distance 
@@ -205,6 +207,9 @@ class bounded_sensor:
         sensor_rays = _.get_ray_lines()
         sensor_output = []
         collision = False
+
+        goal = distance(_.goal.center, (_.x_pos,_.y_pos)) < _.goal.radius
+        
         
         for ray in sensor_rays:
             i= False
@@ -219,13 +224,13 @@ class bounded_sensor:
                     
                         i=True
                 else:
-                    intersect, dist, i_count = ray_intersects_polygon(ray[0], ray[1], obj.get_sides())
+                    intersect, dist = ray_intersects_polygon(ray[0], ray[1], obj.get_sides())
                     if intersect and dist < d:
                         d=dist
                         i=True
 
                     if obj.shape=='rectangle':
-                        if obj.is_inside(_.x_pos, _.y_pos):
+                        if obj.is_inside(_.x_pos, _.y_pos) and not obj.is_border:
                             collision=True
 
                     # use to find if point is within poly
@@ -240,9 +245,10 @@ class bounded_sensor:
                     
                     # bbPath.contains_point((200, 100))
             sensor_output.append((i,d))
-        return sensor_output
+        return {"ray_intersection":sensor_output, "collision":collision, "goal":goal}
     def connect_env(_,env):
         _.env_objects = env.objects
+        _.goal = env.goal
 
     def sense(_):
         return _.sense_objects(_.env_objects)

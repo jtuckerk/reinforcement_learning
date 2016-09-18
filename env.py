@@ -11,15 +11,20 @@ class env:
         _.height=height
         _.objects=[]
         _.agents = []
+        _.agent_start = None
         _.size = (_.width,_.height)
-        _.goal=(_.width,_.height)
+        
+        _.goal=None
         #environment boundaries
         if show:
             _.fig, _.ax = plt.subplots()
             
-        bounds = _.rectangle((0,0), (width, height), is_border=True) 
-        _.objects.append(bounds)
+        _.bounds = _.rectangle((0,0), (width, height), is_border=True) 
+        _.objects.append(_.bounds)
 
+    def create_goal(_, (x,y), radius):
+        _.goal=plt.Circle((x, y),radius)
+        
     def add_agent(_, agent):
         agent.connect_env(_)
         _.agents.append(agent)
@@ -42,15 +47,18 @@ class env:
     def add_random_polygon(_,radius, variance, sides):
         _.objects.append(_.random_polygon(radius, variance, sides, _.width, _.height))
 
+    def draw_goal(_):
+        _.fig.gca().add_patch(_.goal)
+    
     def draw(_):
-
+        
         _.update_draw()
         plt.show()         
-
 
     def update_draw(_):
 
         _.ax.clear()
+        _.draw_goal()
         for o in _.objects:
             _.fig.gca().add_patch(o.draw_obj())
 
@@ -71,11 +79,18 @@ class env:
         try:
             plan = yaml.safe_load(f)
 
-            bounds = plan['bound']
+            bounds = plan['bounds']
             _.width = bounds[0]
             _.height = bounds[1]
             _.objects[0] = _.rectangle((0,0), bounds, is_border=True)
+            _.bounds = _.objects[0]
 
+            if 'goal' in plan:
+                g = plan['goal']
+                _.create_goal(g['origin'], g['radius'])
+
+            if 'agent_start' in plan:
+                _.agent_start = plan['agent_start']
 
             for o in plan['objects']:
                 o_type = o.keys()[0] #ugly
@@ -96,7 +111,7 @@ class env:
         origin = [0,0] #bottom left
         size = [1,1] # width,height
 
-        color = 'b'
+        color = 'r'
         def draw_obj(_):
             if _.is_border:
 
@@ -115,13 +130,13 @@ class env:
             _.is_border = is_border
             
         def is_inside(_,x,y):
-            return (x>=_.origin and x<=_.origin+_.size[0] and y>=_.origin and y<=_.origin+_.size[1])
+            return (x>=_.origin[0] and x<=_.origin[0]+_.size[0] and y>=_.origin[1] and y<=_.origin[1]+_.size[1])
 
     class circle:
         shape = 'circle'
         origin = (0,0) 
         radius = 1
-        color = 'b'
+        color = 'r'
         def draw_obj(_):
             return plt.Circle(_.origin, radius=_.radius, fc=_.color)
         def __init__(_, (x0,y0), r):
@@ -143,7 +158,7 @@ class env:
             return np.random.normal(mean, var, 1)[0]
 
         def draw_obj(_):
-            return plt.Polygon(_.get_sides_lines(), fc='b')
+            return plt.Polygon(_.get_sides_lines(), fc=_.color)
             
         def __init__(_, radius, variance, sides, width, height):
             _.side_list = []
@@ -152,7 +167,8 @@ class env:
             _.sides=sides
             _.x = _.unif()*width
             _.y = _.unif()*height
-
+            _.color = 'r'
+            
             s1 = _.gaus(.5, 0)
             s2 = _.gaus(.5, 0)
             s1=1 if s1>0 else -1
@@ -190,3 +206,6 @@ class env:
 
         def get_sides(_):
             return _.side_list
+
+
+        
