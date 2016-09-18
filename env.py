@@ -32,6 +32,9 @@ class env:
     def add_circle(_,(x0,y0), r):
         _.objects.append(_.circle((x0,y0), r))
 
+    def add_line(_, (p0x, p0y), (p1x,p1y)):
+        _.objects.append(_.line((p0x,p1x), (p0y, p1y)))
+        
     def add_rectangle(_,(x0,y0), (w,h)):
         _.objects.append(_.rectangle((x0,y0), (w,h)))
 
@@ -101,17 +104,33 @@ class env:
                     _.add_rectangle(vals['origin'], vals['size'])
                 if o_type=='random_polygon':
                     _.add_random_polygon(vals['radius'], vals['variance'], vals['sides'])
+                if o_type=='line':
+                    _.add_line(vals['p0'], vals['p1'])
         except Exception as e:
             print "failed to load environment from yaml: ", e
                         
         f.close()
-    class rectangle:
-        shape = 'rectangle'
-        is_border = False
-        origin = [0,0] #bottom left
-        size = [1,1] # width,height
+    class line:
+        shape = 'line'
 
         color = 'r'
+        def __init__(_,(p0x,p0y),(p1x,p1y)):
+            _.p0x = p0x
+            _.p0y = p0y
+            _.p1x = p1x
+            _.p1y = p1y
+            
+        def draw_obj(_):
+            plt.Line2D((_.p0x,_.p1x), (_.p0y, _.p1y), lw=2, fc=_.color))
+            return plt.Line
+
+        def get_sides(_):
+            return [(_.p0x,_.p1x), (_.p0y, _.p1y)]
+        
+    class rectangle:
+        shape = 'rectangle'
+        color = 'r'
+
         def draw_obj(_):
             if _.is_border:
 
@@ -134,8 +153,6 @@ class env:
 
     class circle:
         shape = 'circle'
-        origin = (0,0) 
-        radius = 1
         color = 'r'
         def draw_obj(_):
             return plt.Circle(_.origin, radius=_.radius, fc=_.color)
