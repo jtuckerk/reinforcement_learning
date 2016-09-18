@@ -79,7 +79,7 @@ class env:
         try:
             plan = yaml.safe_load(f)
 
-            bounds = plan['bounds']
+            bounds = plan['boundsa']
             _.width = bounds[0]
             _.height = bounds[1]
             _.objects[0] = _.rectangle((0,0), bounds, is_border=True)
