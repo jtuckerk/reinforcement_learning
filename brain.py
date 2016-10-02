@@ -23,11 +23,11 @@ class brain_keyboard:
 
     def read_input(_,env_input):
         formatted = []
-        for a in env_input['ray_intersection']:
+        for a in env_input:
             b = (a[0], round(a[1],2))
             formatted.append(b)
-        print formatted
-        print env_input
+#        print formatted
+#        print env_input
         sys.stdout.flush()
 
 

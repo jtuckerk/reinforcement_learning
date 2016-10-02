@@ -3,6 +3,13 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 import yaml
+import yaml
+from yaml import load, dump
+try:
+        from yaml import CLoader as Loader, CDumper as Dumper
+except ImportError:
+        from yaml import Loader, Dumper
+
 
 class env:
 
@@ -13,28 +20,28 @@ class env:
         _.agents = []
         _.agent_start = None
         _.size = (_.width,_.height)
-        
+
         _.goal=None
         #environment boundaries
         if show:
             _.fig, _.ax = plt.subplots()
-            
-        _.bounds = _.rectangle((0,0), (width, height), is_border=True) 
+
+        _.bounds = _.rectangle((0,0), (width, height), is_border=True)
         _.objects.append(_.bounds)
 
     def create_goal(_, (x,y), radius):
         _.goal=plt.Circle((x, y),radius)
-        
+
     def add_agent(_, agent):
         agent.connect_env(_)
         _.agents.append(agent)
-        
+
     def add_circle(_,(x0,y0), r):
         _.objects.append(_.circle((x0,y0), r))
 
     def add_line(_, (p0x, p0y), (p1x,p1y)):
         _.objects.append(_.line((p0x,p1x), (p0y, p1y)))
-        
+
     def add_rectangle(_,(x0,y0), (w,h)):
         _.objects.append(_.rectangle((x0,y0), (w,h)))
 
@@ -46,17 +53,17 @@ class env:
         h = np.random.normal(mean_side_length, var, 1)[0]
 
         _.objects.append(_.rectangle((x,y), (w,h)))
-        
+
     def add_random_polygon(_,radius, variance, sides):
         _.objects.append(_.random_polygon(radius, variance, sides, _.width, _.height))
 
     def draw_goal(_):
         _.fig.gca().add_patch(_.goal)
-    
+
     def draw(_):
-        
+
         _.update_draw()
-        plt.show()         
+        plt.show()
 
     def update_draw(_):
 
@@ -66,23 +73,23 @@ class env:
             _.fig.gca().add_patch(o.draw_obj())
 
         for a in _.agents:
-            
+
             for o in a.draw_objs():
-                
+
                 _.fig.gca().add_patch(o)
 
 
         _.ax.axis('scaled')
 
         _.fig.canvas.draw()
-        
+
     def load_from_yaml(_,filename):
         f = open(filename)
         # use safe_load instead load
         try:
             plan = yaml.safe_load(f)
 
-            bounds = plan['boundsa']
+            bounds = plan['bounds']
             _.width = bounds[0]
             _.height = bounds[1]
             _.objects[0] = _.rectangle((0,0), bounds, is_border=True)
@@ -108,7 +115,7 @@ class env:
                     _.add_line(vals['p0'], vals['p1'])
         except Exception as e:
             print "failed to load environment from yaml: ", e
-                        
+
         f.close()
     class line:
         shape = 'line'
@@ -119,14 +126,13 @@ class env:
             _.p0y = p0y
             _.p1x = p1x
             _.p1y = p1y
-            
+
         def draw_obj(_):
-            plt.Line2D((_.p0x,_.p1x), (_.p0y, _.p1y), lw=2, fc=_.color))
-            return plt.Line
+            return plt.Polygon([(_.p0x,_.p1x), (_.p0y, _.p1y)], lw=1, fc=_.color)
 
         def get_sides(_):
-            return [(_.p0x,_.p1x), (_.p0y, _.p1y)]
-        
+            return [[(_.p0x,_.p1x), (_.p0y, _.p1y)]]
+
     class rectangle:
         shape = 'rectangle'
         color = 'r'
@@ -136,7 +142,7 @@ class env:
 
                 return plt.Rectangle(_.origin, _.size[0],_.size[1],fill=None, lw=5, edgecolor='g')
             return plt.Rectangle(_.origin, _.size[0],_.size[1], fc=_.color)
-        
+
         def get_sides(_):
             return [(_.origin, (_.origin[0]+_.size[0], _.origin[1])),
                     (_.origin, (_.origin[0], _.origin[1]+_.size[1])),
@@ -147,7 +153,7 @@ class env:
             _.origin = (x0,y0)
             _.size = [width,height]
             _.is_border = is_border
-            
+
         def is_inside(_,x,y):
             return (x>=_.origin[0] and x<=_.origin[0]+_.size[0] and y>=_.origin[1] and y<=_.origin[1]+_.size[1])
 
@@ -159,7 +165,7 @@ class env:
         def __init__(_, (x0,y0), r):
             _.origin = (x0, y0)
             _.radius = r
-            
+
         def is_inside(_, x,y):
             return math.sqrt((_.origin[0]-x)**2 + (_.origin[1]-y)**2) <= _.radius
 
@@ -176,7 +182,7 @@ class env:
 
         def draw_obj(_):
             return plt.Polygon(_.get_sides_lines(), fc=_.color)
-            
+
         def __init__(_, radius, variance, sides, width, height):
             _.side_list = []
             _.radius = radius # approximate size
@@ -185,7 +191,7 @@ class env:
             _.x = _.unif()*width
             _.y = _.unif()*height
             _.color = 'r'
-            
+
             s1 = _.gaus(.5, 0)
             s2 = _.gaus(.5, 0)
             s1=1 if s1>0 else -1
@@ -225,4 +231,170 @@ class env:
             return _.side_list
 
 
-        
+    class create_env:
+        def __init__(_,env):
+
+            _.press=None
+            _.x0 = None
+            _.y0 = None
+            _.x1 = None
+            _.y1 = None
+            _.goal=None
+            _.objects = []
+            _.cur_obj = None
+            _.fig = env.fig
+            _.ax = env.ax
+            _.start_loc = (0,0)
+            _.fig.canvas.mpl_connect('button_press_event', _.on_click)
+            _.fig.canvas.mpl_connect('button_release_event', _.on_release)
+            _.fig.canvas.mpl_connect('motion_notify_event', _.on_motion)
+
+            _.fig.canvas.mpl_connect('key_press_event', _.key_press)
+
+            _.fig.title = "dont draw outside the white!"
+
+            _.bounds = [env.width, env.height]
+            border_w = env.width*.2
+            border_h = env.height*.2
+            _.ax.set_autoscale_on(False)
+            _.ax.axis([0-border_w,env.width+border_w,0-border_h,env.height+border_h])
+            _.fig.gca().add_patch(env.bounds.draw_obj())
+
+            _.key='r'
+            _.label='Rectangle Draw'
+            _.fig.suptitle(_.label, fontsize=20)
+
+            plt.show()
+
+        def on_click(_, event):
+            _.x0 = event.xdata
+            _.y0 = event.ydata
+
+            if _.key == 'r':
+                
+                _.cur_obj = plt.Rectangle((_.x0,_.y0), 0, 0)
+                _.ax.add_patch(_.cur_obj)
+
+            if _.key == 'i':
+                _.cur_obj = plt.Line2D((0,0), (0, 0), lw=2)
+                _.ax.add_line(_.cur_obj)
+
+
+            if _.key == 'g':
+                _.cur_obj = plt.Circle((_.x0, _.y0), 0, fc='g')
+                _.ax.add_patch(_.cur_obj)
+
+
+            if _.key == 'x':
+                start_loc = (_.x0, _.y0)
+                plt.plot(_.x0,_.y0,'ro')
+
+            _.press = event.xdata, event.ydata
+
+            _.ax.figure.canvas.draw()
+
+        def on_release(_, event):
+            _.press = None
+
+            _.x1 = event.xdata
+            _.y1 = event.ydata
+
+            if _.key =='r':
+
+                _.cur_obj.set_width(_.x1 - _.x0)
+                _.cur_obj.set_height(_.y1 - _.y0)
+                _.cur_obj.set_xy((_.x0, _.y0))
+                _.objects.append(('rectangle',_.cur_obj))
+
+            if _.key == 'i':
+
+                _.cur_obj.set_data((_.x0,_.x1), (_.y0,_.y1))
+                _.objects.append(('line',_.cur_obj))
+
+            if _.key == 'g':
+                rad = np.linalg.norm(np.array([_.x1,_.y1])- np.array([_.x0,_.y0]))
+                _.cur_obj.set_radius(rad)
+                del _.goal
+                _.goal = _.cur_obj
+
+
+            _.ax.figure.canvas.draw()
+
+
+        def on_motion(_, event):
+            if _.press == None:
+                return
+
+            _.x1 = event.xdata
+            _.y1 = event.ydata
+            if _.key =='r':
+
+                _.cur_obj.set_width(_.x1 - _.x0)
+                _.cur_obj.set_height(_.y1 - _.y0)
+                _.cur_obj.set_xy((_.x0, _.y0))
+
+            if _.key == 'i':
+
+                _.cur_obj.set_data((_.x0,_.x1), (_.y0,_.y1))
+
+            if _.key == 'g':
+                rad = np.linalg.norm(np.array([_.x1,_.y1])- np.array([_.x0,_.y0]))
+                _.cur_obj.set_radius(rad)
+
+            _.ax.figure.canvas.draw()
+
+
+        def key_press(_, event):
+
+            if  event.key not in ['r','i','g', 'a', 'x'] or _.press!=None:
+                return
+
+            _.key = event.key
+
+            if _.key == 'r':
+                _.label = 'Rectangle Draw'
+            if _.key == 'g':
+                _.label = 'Place Goal'
+            if _.key == 'i':
+                _.label = 'Line Draw'
+            if _.key == 'x':
+                _.label = 'Agent Start Location'
+            if _.key =='a':
+                _.save_env()
+
+            _.fig.suptitle(_.label, fontsize=20)
+            _.ax.figure.canvas.draw()
+
+        def save_env(_):
+            plan = {'bounds':None,
+                    'objects':[],
+                    'goal':{'origin':None, 'radius':None},
+                    'agent_start':None}
+
+            plan['bounds'] = _.bounds
+            if _.goal:
+                plan['goal']['origin'] = [float(_.goal.center[0]), float(_.goal.center[1])]
+                plan['goal']['radius'] = float(_.goal.radius)
+            if _.start_loc:
+                plan['agent_start'] = list(_.start_loc)
+
+            for obj_type, obj in _.objects:
+
+                o={obj_type:{}}
+                if obj_type == 'rectangle':
+                    o[obj_type]['origin'] = [float(obj.xy[0]), float(obj.xy[1])]
+                    o[obj_type]['size'] = [float(obj.get_width()), float(obj.get_height())]
+
+                if obj_type == 'line':
+                    p1, p2 = zip(*obj.get_data())
+                    p1 = [float(p1[0]), float(p1[1])]
+                    p2 = [float(p2[0]), float(p2[1])]
+                    o[obj_type]['p0']=p1
+                    o[obj_type]['p1']=p2
+
+                plan['objects'].append(o)
+
+            output = dump(plan, Dumper=Dumper)
+            print output
+            with open('data.yml', 'w') as outfile:
+                yaml.dump(plan, outfile, default_flow_style=False)

@@ -108,8 +108,7 @@ def line_intersection(line1, line2):
     y = det(d, ydiff) / div
     return (True, (x, y))
 
-def distance(a,b):
-    return math.sqrt((a[0] - b[0])**2 + (a[1] - b[1])**2)
+
 
 epsilon = .0001
 def is_between(a, c, b):
@@ -149,10 +148,11 @@ def ray_intersects_polygon((Ax, Ay), (Bx, By), sides):
 class bounded_sensor:
 
     goal_dist = .2
-    
-    def __init__(_, ray_count, ray_width, distance, x_pos, y_pos):
+    def distance(_,a,b):
+        return math.sqrt((a[0] - b[0])**2 + (a[1] - b[1])**2)    
+    def __init__(_, ray_count, ray_width, ray_length, x_pos, y_pos):
         _.ray_count = ray_count 
-        _.distance = distance 
+        _.ray_length = ray_length
         _.x_pos= x_pos
         _.y_pos= y_pos
         _.ray_width = ray_width #degrees
@@ -185,8 +185,8 @@ class bounded_sensor:
             rad_angle = np.deg2rad(angle)
 
 
-            dx = _.distance*np.cos(rad_angle)
-            dy = _.distance*np.sin(rad_angle)
+            dx = _.ray_length*np.cos(rad_angle)
+            dy = _.ray_length*np.sin(rad_angle)
             
             lines.append(((_.x_pos,_.y_pos), (_.x_pos+dx, _.y_pos+dy)))
 
@@ -203,17 +203,18 @@ class bounded_sensor:
         return plt.Polygon(_.ray_visual_lines(), fc='y')
 
     # each ray returns true or false and a distance to the intersection
-    def sense_objects(_, obj_list):
-        sensor_rays = _.get_ray_lines()
+    def ray_collisions(_, obj_list, ray_lines):
+
         sensor_output = []
         collision = False
 
-        goal = distance(_.goal.center, (_.x_pos,_.y_pos)) < _.goal.radius
+        #todo migrate this
+        #goal = _.distance(_.goal.center, (_.x_pos,_.y_pos)) < _.goal.radius
         
         
-        for ray in sensor_rays:
+        for ray in ray_lines:
             i= False
-            d = _.distance+1 # make sure we find the closest to the sensor
+            d = _.ray_length+1 # make sure we find the closest to the sensor
             for obj in obj_list:
 
                 if obj.shape == 'circle':
@@ -229,26 +230,12 @@ class bounded_sensor:
                         d=dist
                         i=True
 
-                    if obj.shape=='rectangle':
-                        if obj.is_inside(_.x_pos, _.y_pos) and not obj.is_border:
-                            collision=True
-
-                    # use to find if point is within poly
-                    # import matplotlib.path as mplPath
-                    # import numpy as np
-
-                    # poly = [190, 50, 500, 310]
-                    # bbPath = mplPath.Path(np.array([[poly[0], poly[1]],
-                    #                                 [poly[1], poly[2]],
-                    #                                 [poly[2], poly[3]],
-                    #                                 [poly[3], poly[0]]]))
-                    
-                    # bbPath.contains_point((200, 100))
             sensor_output.append((i,d))
-        return {"ray_intersection":sensor_output, "collision":collision, "goal":goal}
+        return sensor_output
     def connect_env(_,env):
         _.env_objects = env.objects
         _.goal = env.goal
 
     def sense(_):
-        return _.sense_objects(_.env_objects)
+        ray_lines = _.get_ray_lines()
+        return _.ray_collisions(_.env_objects, ray_lines)
