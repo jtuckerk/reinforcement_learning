@@ -58,6 +58,8 @@ def ray_intersects_circle((Ax, Ay), (Bx, By), (Cx, Cy), radius): #A start B end
      
       return False,0 ;
 
+def distance(a,b):
+    return math.sqrt((a[0] - b[0])**2 + (a[1] - b[1])**2)    
 
 # A is ray origin B is Ray end C is circle center
 def get_intersect_distance_circle((Ax,Ay),(Bx,By), (Cx, Cy), radius):
